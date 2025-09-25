@@ -25,7 +25,9 @@ const int MAX_FRAMES_IN_FLIGHT = 3; // CHANGING THIS FROM 2 -> 3 WAS NOT A FIX
 /*
 it just resolves the error because now # frames in flight = imageView vector size -> each image now has appropriate semaphores,
 but changing this or the frame buffer breaks it again.
-// look at comments: https://vulkan-tutorial.com/Drawing_a_triangle/Drawing/Frames_in_flight
+source: (look at comments) https://vulkan-tutorial.com/Drawing_a_triangle/Drawing/Frames_in_flight
+
+ TODO: either link each image with a semaphore instead of creating one for the max frames in flight (preferrable) or make the semaphore vector be scaled off the size of the imageviews vector. (item 4 on tasks list)
 */
 
 const std::vector<const char*> validationLayers = {
