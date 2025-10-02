@@ -294,6 +294,7 @@ private:
         }
         
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+        
     }
     
     void cleanup() {
@@ -1095,12 +1096,12 @@ private:
     }
     
     std::vector<const char*> getRequiredExtensions() {
-        uint32_t glfwEntensionCount = 0;
+        uint32_t glfwExtensionCount = 0;
         const char** glfwExtensions;
         
-        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwEntensionCount);
+        glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
         
-        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwEntensionCount);
+        std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
         
         if (enableValidationLayers) {
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
