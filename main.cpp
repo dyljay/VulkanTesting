@@ -1,6 +1,8 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
+#include "/Users/dylanjayasundera/Code/VulkanTesting/VulkanTesting/camera.hpp" // TODO: INCLUDE PROJECT FILE PATH
+
 #include <iostream>
 #include <stdexcept>
 #include <cstdlib>
@@ -12,15 +14,14 @@
 #include <algorithm>
 #include <fstream>
 #include <array>
-#include <chrono>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
+const uint32_t WIDTH = 1920;
+const uint32_t HEIGHT = 1080;
 
 const int MAX_FRAMES_IN_FLIGHT = 3; // CHANGING THIS FROM 2 -> 3 WAS NOT A FIX
 /*
@@ -112,6 +113,11 @@ struct UniformBufferObject {
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 proj;
+    
+    
+    UniformBufferObject() : model(glm::mat4(1.0f)), view(glm::mat4(1.0f)) {
+        model = glm::translate(model, glm::vec3(0.0f,0.0f,-4.0f));
+    }
 };
 
 
@@ -180,6 +186,8 @@ private:
     VkBuffer indexBuffer;
     VkDeviceMemory indexBufferMemory;
     
+    UniformBufferObject ubo{};
+    
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
@@ -187,16 +195,24 @@ private:
     VkDescriptorPool descriptorPool;
     std::vector<VkDescriptorSet> descriptorSets;
     
+    Camera camera;
+    float lastX = (float) WIDTH / 2;
+    float lastY = (float) HEIGHT / 2;
+    bool firstMouse = true;
     
     void initWindow() {
         glfwInit();
         
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         
-        window = glfwCreateWindow(WIDTH, HEIGHT, "Glumptony Glumptano", nullptr, nullptr);
-        glfwSetWindowUserPointer(window, this);
-        glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+        window = glfwCreateWindow(WIDTH, HEIGHT, "Skumpwit", nullptr, nullptr);
         
+        glfwSetWindowUserPointer(window, this);
+        
+        glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        
+        glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+        glfwSetCursorPosCallback(window, mouseCallback);
     }
     
     void initVulkan() {
@@ -222,10 +238,17 @@ private:
     }
     
     void mainLoop() {
+        auto startTime = std::chrono::high_resolution_clock::now();
+        
         while(!glfwWindowShouldClose(window)) {
-            processInput(window);
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            float deltaTime = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+            
+            processInput(window, deltaTime);
             glfwPollEvents();
             drawFrame();
+            
+            startTime = currentTime;
         }
         
         vkDeviceWaitIdle(device);
@@ -1329,23 +1352,7 @@ private:
     }
     
     void updateUniformBuffer(uint32_t currentImage) {
-        static auto startTime = std::chrono::high_resolution_clock::now();
-        
-        auto currentTime = std::chrono::high_resolution_clock::now();
-        float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-        
-        UniformBufferObject ubo{};
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.0f, 0.1f, 0.0f));
-        model = glm::rotate(model, 2*time*glm::radians(90.0f), glm::vec3(0.f, 1.f, 0.f));
-        float moveAmount = static_cast<float>(0.15*sin(3.f*time));
-        model = glm::translate(model, glm::vec3(0.0f, moveAmount, 0.0f));
-        ubo.model = model;
-        
-        glm::mat4 view = glm::mat4(1.0f);
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.f));
-        view = glm::rotate(view, glm::radians(25.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        ubo.view = view;
+        ubo.view = camera.GetViewMatrix();
         
         ubo.proj = glm::perspective(glm::radians(50.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1;
@@ -1353,9 +1360,40 @@ private:
         memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
     }
     
-    void processInput(GLFWwindow* window) {
+    void processInput(GLFWwindow* window, float deltaTime) {
         if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
             glfwSetWindowShouldClose(window, true);
+        
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            camera.ProcessKeyboard(FORWARD, deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            camera.ProcessKeyboard(BACKWARD, deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            camera.ProcessKeyboard(LEFT, deltaTime);
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            camera.ProcessKeyboard(RIGHT, deltaTime);
+    }
+    
+    static void mouseCallback(GLFWwindow* window, double xposIn, double yposIn) {
+        auto app = reinterpret_cast<HelloTriangleApplication*>(glfwGetWindowUserPointer(window));
+        
+        float xpos = static_cast<float>(xposIn);
+        float ypos = static_cast<float>(yposIn);
+
+        if (app->firstMouse)
+        {
+            app->lastX = xpos;
+            app->lastY = ypos;
+            app->firstMouse = false;
+        }
+
+        float xoffset = xpos - app->lastX;
+        float yoffset = app->lastY - ypos; // reversed since y-coordinates go from bottom to top
+
+        app->lastX = xpos;
+        app->lastY = ypos;
+
+        app->camera.ProcessMouseMovement(xoffset, yoffset);
     }
 };
 
